@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zip File Extractor</title>
+    <!-- JSZip Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--primary-color);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            background-color: #eff6ff;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .drop-zone:hover {
+            background-color: #dbeafe;
+        }
+
+        .drop-zone input {
+            display: none;
+        }
+
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-name {
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .file-size {
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-left: 10px;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ZIP File Extractor</h1>
+    
+    <div class="drop-zone" onclick="document.getElementById('zipInput').click()">
+        <p><strong>Click to select a ZIP file</strong> or drag & drop it here</p>
+        <input type="file" id="zipInput" accept=".zip">
+    </div>
+
+    <div id="status" class="status"></div>
+    <ul id="fileList" class="file-list"></ul>
+</div>
+
+<script>
+    const zipInput = document.getElementById('zipInput');
+    const fileList = document.getElementById('fileList');
+    const status = document.getElementById('status');
+
+    zipInput.addEventListener('change', handleFileSelect);
+
+    // Support drag and drop
+    const dropZone = document.querySelector('.drop-zone');
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#dbeafe';
+    });
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.backgroundColor = '#eff6ff';
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.backgroundColor = '#eff6ff';
+        if (e.dataTransfer.files.length > 0) {
+            zipInput.files = e.dataTransfer.files;
+            handleFileSelect();
+        }
+    });
+
+    async function handleFileSelect() {
+        const file = zipInput.files[0];
+        if (!file) return;
+
+        fileList.innerHTML = '';
+        status.textContent = 'Reading ZIP file...';
+
+        try {
+            const jszip = new JSZip();
+            const zip = await jszip.loadAsync(file);
+            
+            status.textContent = `Extracted ${Object.keys(zip.files).length} files/folders from ${file.name}`;
+
+            zip.forEach((relativePath, zipEntry) => {
+                if (zipEntry.dir) return; // Skip directories
+
+                const li = document.createElement('li');
+                li.className = 'file-item';
+
+                const fileInfo = document.createElement('div');
+                fileInfo.innerHTML = `<span class="file-name">${relativePath}</span>`;
+
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'btn';
+                downloadBtn.textContent = 'Download';
+                downloadBtn.onclick = () => downloadFile(zipEntry);
+
+                li.appendChild(fileInfo);
+                li.appendChild(downloadBtn);
+                fileList.appendChild(li);
+            });
+        } catch (error) {
+            status.textContent = 'Error reading ZIP file: ' + error.message;
+            console.error(error);
+        }
+    }
+
+    async function downloadFile(zipEntry) {
+        const blob = await zipEntry.async('blob');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = zipEntry.name.split('/').pop(); // Extract filename
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+</body>
+</html>
